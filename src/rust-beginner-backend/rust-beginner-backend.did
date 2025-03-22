@@ -1,4 +1,6 @@
 service : {
     "greet": (text) -> (text) query;
     "collatz": (int32) -> (vec int32) query;
+    "submit_number": (text, int32) -> ();
+    "get_ranking": () -> (vec record { text; int32; vec int32 }) query;
 }

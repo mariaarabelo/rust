@@ -1,90 +1,76 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { rust_beginner_backend } from "declarations/rust-beginner-backend";
 
 function App() {
-  const [greeting, setGreeting] = useState("");
+  const [name, setName] = useState("");
+  const [number, setNumber] = useState("");
   const [sequence, setSequence] = useState("");
-  const [loadingGreeting, setLoadingGreeting] = useState(false);
-  const [loadingSequence, setLoadingSequence] = useState(false);
-  const [error, setError] = useState("");
+  const [ranking, setRanking] = useState([]);
 
-  async function handleGreet(event) {
+  async function submitNumber(event) {
     event.preventDefault();
-    setLoadingGreeting(true);
-    setError("");
-
-    const name = event.target.elements.name.value.trim();
-    if (!name) {
-      setError("Please enter your name.");
-      setLoadingGreeting(false);
+    const n = parseInt(number);
+    if (!n || n < 1) {
+      setSequence("Please enter a valid positive number.");
       return;
     }
 
     try {
-      const response = await rust_beginner_backend.greet(name);
-      setGreeting(response);
-    } catch (err) {
-      setError("Failed to fetch greeting.");
-    } finally {
-      setLoadingGreeting(false);
-    }
-    
-  }
-
-  async function handleCollatz(event) {
-    event.preventDefault();
-    setLoadingSequence(true);
-    setError("");
-
-    const input = event.target.elements.number.value.trim();
-    const n = parseInt(input, 10);
-
-    if (isNaN(n) || n < 1) {
-      setError("Please enter a valid number.");
-      setLoadingSequence(false);
-      return;
-    }
-
-    try {
-      // Await the result from the canister call
-      const result = await rust_beginner_backend.collatz(n);
-      setSequence(result.join(" → "));
+      await rust_beginner_backend.submit_number(name, n);
+      const updatedRanking = await rust_beginner_backend.get_ranking();
+      setRanking(updatedRanking);
     } catch (error) {
-      setSequence("An error occurred while calculating the sequence.");
-    } finally {
-      setLoadingSequence(false);
+      console.error("Error submitting number:", error);
     }
   }
+
+  useEffect(() => {
+    async function fetchRanking() {
+      try {
+        const rankingData = await rust_beginner_backend.get_ranking();
+        setRanking(rankingData);
+      } catch (error) {
+        console.error("Error fetching ranking:", error);
+      }
+    }
+    fetchRanking();
+  }, []);
 
   return (
-    <main style={styles.container}>
-      <img src="/logo2.svg" alt="DFINITY logo" style={styles.logo} />
+    <main style={{ textAlign: "center", padding: "20px" }}>
+      <h1>Collatz Ranking Challenge</h1>
       
-      {error && <p style={styles.error}>{error}</p>}
-
-      {/* Greeeting section */}
-      <section style={styles.section}>
-        <h2>Say Hello!</h2>
-        <form onSubmit={handleGreet} style={styles.form}>
-          <input id="name" type="text" placeholder="Enter your name" style={styles.input} />
-          <button type="submit" style={styles.button} disabled={loadingGreeting}>
-            {loadingGreeting ? "Loading..." : "Greet"}
-          </button>
+      <form onSubmit={submitNumber} style={{ marginBottom: "20px" }}>
+        <label>
+          Name: 
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+        </label>
+        <label>
+          Number: 
+          <input type="number" value={number} onChange={(e) => setNumber(e.target.value)} required />
+        </label>
+        <button type="submit">Submit</button>
       </form>
-      {greeting && <p style={styles.result}>{greeting}</p>}
-      </section>
 
-      {/* Collatz sequence section */}
-      <section style={styles.section}>
-        <h2>Collatz Sequence Calculator</h2>
-        <form onSubmit={handleCollatz} style={styles.form}>
-          <input id="number" type="number" placeholder="Enter a number" style={styles.input} />
-          <button type="submit" style={styles.button} disabled={loadingSequence}>
-            {loadingSequence ? "Calculating..." : "Generate Sequence"}
-          </button>
-        </form>
-        {sequence && <p style={styles.result}>{sequence}</p>}
-      </section>
+      <h2>Leaderboard</h2>
+      <table border="1" style={{ margin: "0 auto", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Sequence Length</th>
+            <th>Sequence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ranking.map(([username, length, seq], index) => (
+            <tr key={index}>
+              <td>{username}</td>
+              <td>{length}</td>
+              <td>{seq.join(" → ")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </main>
   );
 }
